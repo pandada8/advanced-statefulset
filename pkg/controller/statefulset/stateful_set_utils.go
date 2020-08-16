@@ -30,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/klog"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/kubernetes/pkg/controller/history"
@@ -253,6 +254,27 @@ func newStatefulSetPod(set *apps.StatefulSet, ordinal int) *v1.Pod {
 	pod.Name = getPodName(set, ordinal)
 	initIdentity(set, pod)
 	updateStorage(set, pod)
+	// HACK: calico ip addr
+	if addrs, ok := pod.Annotations["cni.projectcalico.org/ipAddrs"]; ok {
+		var ipaddrs []string
+		if err := json.Unmarshal([]byte(addrs), &ipaddrs); err == nil {
+			if ordinal >= 0 && ordinal < len(ipaddrs) {
+				ipaddrs = []string{ipaddrs[ordinal]}
+				buf, err := json.Marshal(ipaddrs)
+				if err == nil {
+					pod.Annotations["cni.projectcalico.org/ipAddrs"] = string(buf)
+					fmt.Printf("hack: %s %s %s", pod.Namespace, pod.Name, string(buf))
+					klog.V(4).Infof("HACK: change cni.projectcalico.org/ipAddrs %s %s to %s ", pod.Namespace, pod.Name, string(buf))
+				} else {
+					klog.V(4).Infof("HACK: fail to encode json: %s", err.Error())
+				}
+			} else {
+				klog.V(4).Infof("HACK: ordinal out of boundary: %d/%d", ordinal, len(ipaddrs))
+			}
+		} else {
+			klog.V(4).Infof("HACK: failed to decode json: %s, %s", err.Error(), addrs)
+		}
+	}
 	return pod
 }
 

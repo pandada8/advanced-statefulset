@@ -185,7 +185,7 @@ func (ssc *StatefulSetController) addPod(obj interface{}) {
 		if set == nil {
 			return
 		}
-		klog.V(4).Infof("Pod %s created, labels: %+v", pod.Name, pod.Labels)
+		klog.V(4).Infof("Pod %s created, labels: %+v, annotation: %+v", pod.Name, pod.Labels, pod.Annotations)
 		ssc.enqueueStatefulSet(set)
 		return
 	}
